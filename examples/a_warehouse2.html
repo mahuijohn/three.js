@@ -12,19 +12,16 @@
             margin: 0px;
             overflow: hidden;
         }
-
         #info {
             position: absolute;
             padding: 10px;
             width: 100%;
             text-align: center;
         }
-
         a {
             text-decoration: underline;
             cursor: pointer;
         }
-
     </style>
 </head>
 
@@ -32,14 +29,16 @@
 
 <script src="../build/three.js"></script>
 
-<script src="js/Detector.js"></script>
+<!--<script src="js/Detector.js"></script>-->
 <script src="js/controls/OrbitControls.js"></script>
-<script src="js/libs/stats.min.js"></script>
+<!--<script src="js/libs/stats.min.js"></script>-->
 
-<script src="js/Cloth.js"></script>
-
+<!--<script src="js/Cloth.js"></script>-->
+<script src="js/shaders/ParallaxShader.js"></script>
+<script src="js/controls/DragControls.js"></script>
+<script src="js/controls/TransformControls.js"></script>
 <script>
-
+    var transformControl;
     var pinsFormation = [];
     var pins = [ 6 ];
 
@@ -54,7 +53,7 @@
     pins = []; // cut the rope ;)
     pinsFormation.push( pins );
 
-    pins = [ 0, cloth.w ]; // classic 2 pins
+//    pins = [ 0, cloth.w ]; // classic 2 pins
     pinsFormation.push( pins );
 
     pins = pinsFormation[ 1 ];
@@ -66,7 +65,7 @@
 
     }
 
-    if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
+//    if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
 
     var container, stats;
     var camera, scene, renderer;
@@ -92,7 +91,7 @@
         // camera
 
         camera = new THREE.PerspectiveCamera( 30, window.innerWidth / window.innerHeight, 1, 10000 );
-        camera.position.set( 1000, 50, 1500 );
+        camera.position.set( 2000, 2000, 2000 );
 
         // lights
 
@@ -128,40 +127,9 @@
 
 
         // 仓库地形
-        var shader = THREE.ParallaxShader;
-        var uniforms = THREE.UniformsUtils.clone( shader.uniforms );
-        var parameters = {
-            fragmentShader: shader.fragmentShader,
-            vertexShader: shader.vertexShader,
-            uniforms: uniforms
-        };
-
-        var textureLoader = new THREE.TextureLoader();
-
-        material = new THREE.ShaderMaterial( parameters );
-        material.map = textureLoader.load( 'picture/lengdong.png' );
-        material.bumpMap = textureLoader.load( 'textures/brick_bump.jpg' );
-        material.map.anisotropy = 4;
-        material.bumpMap.anisotropy = 4;
-        uniforms[ 'map' ].value = material.map;
-        uniforms[ 'bumpMap' ].value = material.bumpMap;
-        var geometryArea = new THREE.CubeGeometry( 300, 10, 300 );
-
-//        var geometry = new THREE.BoxGeometry( 1.0, 1.0, 1.0 );
-        var mesh = new THREE.Mesh( geometryArea, material );
-        scene.add( mesh );
-//        var materialArea = new THREE.MeshNormalMaterial( {  overdraw: 0.5 } );
-        var cubeArea = new THREE.Mesh( geometryArea, materialArea );
-        cubeArea.scale.y = Math.floor(1);
-        cubeArea.position.x = -800 + 25;
-        cubeArea.position.y = 5;
-        cubeArea.position.z = 300;
-        scene.add( mesh );
-
-
         var geometry = new THREE.Geometry();
         for (var i = 0; i < 40; i ++) {
-            var pos = 50 * i - 500;
+            var pos = 50 * i - 1000;
 
             // 过道地板
             if (i % 4 == 0 || (i + 1) % 4 == 0) {
@@ -225,23 +193,7 @@
             }
         }
 
-        // 填充物
-
-        var geometry = new THREE.CubeGeometry( 40, 80, 80 );
-        var material = new THREE.MeshNormalMaterial( { overdraw: 0.5 } );
-        for (var i = 0; i < wareArr.length; i ++) {
-            if (Math.random() > 0.5) {
-                continue
-            }
-            var cube = new THREE.Mesh( geometry, material );
-            cube.scale.y = Math.floor(1);
-            cube.position.x = wareArr[i].len + 25;
-            cube.position.y = wareArr[i].hei + 50;
-            cube.position.z = wareArr[i].wid + 50;
-            scene.add( cube );
-        }
         // renderer
-
         renderer = new THREE.WebGLRenderer( { antialias: true } );
         renderer.setPixelRatio( window.devicePixelRatio );
         renderer.setSize( window.innerWidth, window.innerHeight );
@@ -254,6 +206,28 @@
 
         renderer.shadowMap.enabled = true;
 
+        // 响应事件
+        transformControl = new THREE.TransformControls( camera, renderer.domElement );
+        transformControl.linewidth = 0;
+
+        // 填充物
+        var cubes = [];
+        var geometry = new THREE.CubeGeometry( 40, 80, 80 );
+        var material = new THREE.MeshNormalMaterial( { overdraw: 0.5 } );
+        for (var i = 0; i < wareArr.length; i ++) {
+            if (Math.random() > 0.5) {
+                continue
+            }
+            var cube = new THREE.Mesh( geometry, material );
+            cube.scale.y = Math.floor(1);
+            cube.position.x = wareArr[i].len + 25;
+            cube.position.y = wareArr[i].hei + 50;
+            cube.position.z = wareArr[i].wid + 50;
+//            cube.name = 'asdf'
+            scene.add( cube );
+            cubes.push(cube);
+        }
+
         // controls
         var controls = new THREE.OrbitControls( camera, renderer.domElement );
         controls.maxPolarAngle = Math.PI * 1;
@@ -262,10 +236,57 @@
 
         // performance monitor
 
-        stats = new Stats();
-        container.appendChild( stats.dom );
+//        stats = new Stats();
+//        container.appendChild( stats.dom );
 
         window.addEventListener( 'resize', onWindowResize, false );
+
+        // Hiding transform situation is a little in a mess :()
+        transformControl.addEventListener( 'change', function( e ) {
+//            console.log(e)
+//            cancelHideTransorm();
+        } );
+
+        transformControl.addEventListener( 'mouseDown', function( e ) {
+//            console.log(e)
+//            cancelHideTransorm();
+        } );
+
+        transformControl.addEventListener( 'mouseUp', function( e ) {
+            console.log(e)
+            console.log(e.target.object)
+//            delayHideTransform();
+
+        } );
+
+        transformControl.addEventListener( 'objectChange', function( e ) {
+//            console.log(e)
+//            updateSplineOutline();
+
+        } );
+        scene.add( transformControl );
+
+        var dragcontrols = new THREE.DragControls( cubes, camera, renderer.domElement ); //
+//        dragcontrols.activate();
+//        dragcontrols.enabled = false;
+        dragcontrols.addEventListener( 'hoveron', function ( event ) {
+
+            transformControl.attach( event.object );
+//            cancelHideTransorm();
+
+        } );
+
+//        dragcontrols.addEventListener( 'hoveroff', function ( event ) {
+//
+////            delayHideTransform();
+//
+//        } );
+
+        dragcontrols.addEventListener('onClick', function(event) {
+            console.log("asdf", event)});
+
+        // 显示温层
+        showStorageArea();
     }
 
     function onWindowResize() {
@@ -279,16 +300,41 @@
 
     function animate() {
         requestAnimationFrame( animate );
-
         render();
-        stats.update();
-
+//        stats.update();
+//        transformControl.update();
     }
 
     function render() {
         renderer.render( scene, camera );
     }
 
+    function showStorageArea() {
+        var shader = THREE.ParallaxShader;
+        var uniforms = THREE.UniformsUtils.clone( shader.uniforms );
+        var parameters = {
+            fragmentShader: shader.fragmentShader,
+            vertexShader: shader.vertexShader,
+            uniforms: uniforms
+        };
+
+        var textureLoader = new THREE.TextureLoader();
+
+        material = new THREE.ShaderMaterial( parameters );
+        material.map = textureLoader.load( 'picture/lengdong.png' );
+        material.bumpMap = textureLoader.load( 'textures/brick_bump.jpg' );
+        material.map.anisotropy = 4;
+        material.bumpMap.anisotropy = 4;
+        uniforms[ 'map' ].value = material.map;
+        uniforms[ 'bumpMap' ].value = material.bumpMap;
+        var geometryArea = new THREE.CubeGeometry( 300, 10, 300 );
+        var cubeArea = new THREE.Mesh( geometryArea, material );
+        cubeArea.scale.y = Math.floor(1);
+        cubeArea.position.x = -1150 + 25;
+        cubeArea.position.y = 5;
+        cubeArea.position.z = 350;
+        scene.add( cubeArea );
+    }
 </script>
 </body>
 </html>

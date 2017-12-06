@@ -29,64 +29,28 @@
 </head>
 
 <body>
-<!--<div id="info">Simple Cloth Simulation<br/>-->
-<!--Verlet integration with relaxed constraints<br/>-->
-<!--<a onclick="wind = !wind;">Wind</a> |-->
-<!--<a onclick="sphere.visible = !sphere.visible;">Ball</a> |-->
-<!--<a onclick="togglePins();">Pins</a>-->
-<!--</div>-->
-
 <script src="../build/three.js"></script>
 
 <script src="js/Detector.js"></script>
 <script src="js/controls/OrbitControls.js"></script>
 <script src="js/libs/stats.min.js"></script>
-
+<script src="js/shaders/ParallaxShader.js"></script>
 <script src="js/Cloth.js"></script>
 
 <script>
 
     /* testing cloth simulation */
+//    if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
 
-    var pinsFormation = [];
-    var pins = [ 6 ];
-
-    pinsFormation.push( pins );
-
-    pins = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ];
-    pinsFormation.push( pins );
-
-    pins = [ 0 ];
-    pinsFormation.push( pins );
-
-    pins = []; // cut the rope ;)
-    pinsFormation.push( pins );
-
-    pins = [ 0, cloth.w ]; // classic 2 pins
-    pinsFormation.push( pins );
-
-    pins = pinsFormation[ 1 ];
-
-
-    function togglePins() {
-
-        pins = pinsFormation[ ~~ ( Math.random() * pinsFormation.length ) ];
-
-    }
-
-    if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
-
-    var container, stats;
+    var container, stats, raycaster, mouse;
     var camera, scene, renderer;
-
-    var clothGeometry;
-    var sphere;
-    var object;
 
     init();
     animate();
 
     function init() {
+        raycaster = new THREE.Raycaster();
+        mouse = new THREE.Vector2();
 
         container = document.createElement( 'div' );
         document.body.appendChild( container );
@@ -100,7 +64,7 @@
         // camera
 
         camera = new THREE.PerspectiveCamera( 30, window.innerWidth / window.innerHeight, 1, 10000 );
-        camera.position.set( 1000, 50, 1500 );
+        camera.position.set( 2000, 2000, 2000 );
 
         // lights
 
@@ -128,38 +92,7 @@
 
         scene.add( light );
 
-        // cloth material
-
-//				var loader = new THREE.TextureLoader();
-//				var clothTexture = loader.load( 'textures/patterns/circuit_pattern.png' );
-//				clothTexture.anisotropy = 16;
-//
-//				var clothMaterial = new THREE.MeshLambertMaterial( {
-//					map: clothTexture,
-//					side: THREE.DoubleSide,
-//					alphaTest: 0.5
-//				} );
-
-        // cloth geometry
-
-//				clothGeometry = new THREE.ParametricGeometry( clothFunction, cloth.w, cloth.h );
-
-        // cloth mesh
-
-//				object = new THREE.Mesh( clothGeometry, clothMaterial );
-//				object.position.set( 0, 0, 0 );
-//				object.castShadow = true;
-//				scene.add( object );
-//
-//				object.customDepthMaterial = new THREE.MeshDepthMaterial( {
-//
-//					depthPacking: THREE.RGBADepthPacking,
-//					map: clothTexture,
-//					alphaTest: 0.5
-//
-//				} );
-
-
+        //
         var wareArr = [];
 
         // 框架
@@ -177,10 +110,75 @@
         cubeArea.position.z = 300;
         scene.add( cubeArea );
 
+        // -----------------------------------START------------------------------------
+
+        THREE.ImageUtils.crossOrigin = '';
+        var loader = new THREE.TextureLoader();
+        var texture = loader.load('http://i.imgur.com/3tU4Vig.jpg');
+        var shader = THREE.ParallaxShader;
+        var uniforms = THREE.UniformsUtils.clone( shader.uniforms );
+        var parameters = {
+            fragmentShader: shader.fragmentShader,
+            vertexShader: shader.vertexShader,
+            uniforms: uniforms
+        };
+        material = new THREE.ShaderMaterial( parameters );
+        material.map = texture;
+        material.bumpMap = texture;
+        material.map.anisotropy = 4;
+        material.bumpMap.anisotropy = 4;
+        uniforms[ 'map' ].value = material.map;
+        uniforms[ 'bumpMap' ].value = material.bumpMap;
+
+        var cube = new THREE.CubeGeometry( 500, 500, 500 );
+        console.log('material', material)
+        var mesh  = new THREE.Mesh(cube, material);
+        mesh.scale.y = Math.floor(1);
+        mesh.position.x = 25;
+        mesh.position.y = 500;
+        mesh.position.z = 100;
+        scene.add(mesh);
+
+
+//        scene.add(new THREE.Mesh(new THREE.Plane(new THREE.Vector3(1, 0, 0), 100), new THREE.MeshNormalMaterial( {  overdraw: 0.5, side: THREE.DoubleSide } )));
+        scene.add(new THREE.Mesh( new THREE.PlaneGeometry( 480, 204, 4, 1000 ), new THREE.MeshNormalMaterial( {  overdraw: 0.5, side: THREE.DoubleSide } ) ));
+//        new THREE.TextGeometry();
+//        new THREE.ArrowHelper();
+
+        var v1 = new THREE.Vector3(100, 600, 200);
+        var v2 = new THREE.Vector3(400, 600, 300);
+        var v3 = new THREE.Vector3(500, 600, 100);
+        v1.add(new THREE.Vector3(0, 0, 0));
+        v2.add(new THREE.Vector3(0, 0, 0));
+        v3.add(new THREE.Vector3(0, 0, 0));
+        var geometry = new THREE.Geometry();
+        var material = new THREE.MeshBasicMaterial( { vertexColors: THREE.FaceColors, side: THREE.DoubleSide } );
+        var face = new THREE.Face3(
+            geometry.vertices.push( v1 ) - 1,
+            geometry.vertices.push( v2 ) - 1,
+            geometry.vertices.push( v3 ) - 1,
+            null,
+            new THREE.Color( Math.random() * 0xffffff )
+        );
+        geometry.faces.push(face);
+        geometry.computeBoundingSphere();
+        var group = new THREE.Mesh(geometry, material);
+        group.scale.set(2, 2 ,2);
+        scene.add(group)
+
+
+        // sprite
+        var sprite = new THREE.Sprite( new THREE.SpriteMaterial( { color: 0xff0040, side: THREE.BackSide } ) );
+        sprite.scale.set( 100, 100, 1 );
+        sprite.position.set( -100, 600, 0 );
+        scene.add( sprite );
+        console.log('sprite', sprite);
+
+        // -----------------------------------END---------------------------------------
 
         var geometry = new THREE.Geometry();
         for (var i = 0; i < 40; i ++) {
-            var pos = 50 * i - 500;
+            var pos = 50 * i - 1000;
 
             // 过道地板
             if (i % 4 == 0 || (i + 1) % 4 == 0) {
@@ -242,92 +240,27 @@
                     }
                 }
             }
+
+            document.addEventListener( 'mousedown', onDocumentMouseDown, false );
         }
 
         // 填充物
+//        var geometry = new THREE.CubeGeometry( 40, 80, 80 );
+//        var material = new THREE.MeshNormalMaterial( { overdraw: 0.5 } );
+//        for (var i = 0; i < wareArr.length; i ++) {
+//            if (Math.random() > 0.5) {
+//                continue
+//            }
+//            var cube = new THREE.Mesh( geometry, material );
+//            cube.scale.y = Math.floor(1);
+//            cube.position.x = wareArr[i].len + 25;
+//            cube.position.y = wareArr[i].hei + 50;
+//            cube.position.z = wareArr[i].wid + 50;
+//            cube.addEventListener( 'mouseup', onDocumentMouseCancel, false );
+//            scene.add( cube );
+//        }
 
-        var geometry = new THREE.CubeGeometry( 40, 80, 80 );
-        var material = new THREE.MeshNormalMaterial( { overdraw: 0.5 } );
-        for (var i = 0; i < wareArr.length; i ++) {
-            if (Math.random() > 0.5) {
-                continue
-            }
-            var cube = new THREE.Mesh( geometry, material );
-            cube.scale.y = Math.floor(1);
-            cube.position.x = wareArr[i].len + 25;
-            cube.position.y = wareArr[i].hei + 50;
-            cube.position.z = wareArr[i].wid + 50;
-            scene.add( cube );
-        }
-
-        // sphere
-
-//				var ballGeo = new THREE.SphereBufferGeometry( ballSize, 32, 16 );
-//				var ballMaterial = new THREE.MeshLambertMaterial();
-//
-//				sphere = new THREE.Mesh( ballGeo, ballMaterial );
-//				sphere.castShadow = true;
-//				sphere.receiveShadow = true;
-//				scene.add( sphere );
-
-        // ground
-
-//				var groundTexture = loader.load( 'textures/terrain/grasslight-big.jpg' );
-//				groundTexture.wrapS = groundTexture.wrapT = THREE.RepeatWrapping;
-//				groundTexture.repeat.set( 25, 25 );
-//				groundTexture.anisotropy = 16;
-//
-//				var groundMaterial = new THREE.MeshLambertMaterial( { map: groundTexture } );
-//
-//				var mesh = new THREE.Mesh( new THREE.PlaneBufferGeometry( 20000, 20000 ), groundMaterial );
-//				mesh.position.y = - 250;
-//				mesh.rotation.x = - Math.PI / 2;
-//				mesh.receiveShadow = true;
-//				scene.add( mesh );
-
-        // poles
-
-//				var poleGeo = new THREE.BoxBufferGeometry( 5, 375, 5 );
-//				var poleMat = new THREE.MeshLambertMaterial();
-//
-//				var mesh = new THREE.Mesh( poleGeo, poleMat );
-//				mesh.position.x = - 125;
-//				mesh.position.y = - 62;
-//				mesh.receiveShadow = true;
-//				mesh.castShadow = true;
-//				scene.add( mesh );
-//
-//				var mesh = new THREE.Mesh( poleGeo, poleMat );
-//				mesh.position.x = 125;
-//				mesh.position.y = - 62;
-//				mesh.receiveShadow = true;
-//				mesh.castShadow = true;
-//				scene.add( mesh );
-//
-//				var mesh = new THREE.Mesh( new THREE.BoxBufferGeometry( 255, 5, 5 ), poleMat );
-//				mesh.position.y = - 250 + ( 750 / 2 );
-//				mesh.position.x = 0;
-//				mesh.receiveShadow = true;
-//				mesh.castShadow = true;
-//				scene.add( mesh );
-//
-//				var gg = new THREE.BoxBufferGeometry( 10, 10, 10 );
-//				var mesh = new THREE.Mesh( gg, poleMat );
-//				mesh.position.y = - 250;
-//				mesh.position.x = 125;
-//				mesh.receiveShadow = true;
-//				mesh.castShadow = true;
-//				scene.add( mesh );
-//
-//				var mesh = new THREE.Mesh( gg, poleMat );
-//				mesh.position.y = - 250;
-//				mesh.position.x = - 125;
-//				mesh.receiveShadow = true;
-//				mesh.castShadow = true;
-//				scene.add( mesh );
-
-        // renderer
-
+        //
         renderer = new THREE.WebGLRenderer( { antialias: true } );
         renderer.setPixelRatio( window.devicePixelRatio );
         renderer.setSize( window.innerWidth, window.innerHeight );
@@ -342,9 +275,12 @@
 
         // controls
         var controls = new THREE.OrbitControls( camera, renderer.domElement );
-        controls.maxPolarAngle = Math.PI * 1;
+//        controls.maxPolarAngle = Math.PI * 1;
         controls.minDistance = 1000;
         controls.maxDistance = 5000;
+        controls.enablePan = false;
+        controls.maxPolarAngle = 0.5 * Math.PI;
+        controls.minPolarAngle = 0 * Math.PI;
 
         // performance monitor
 
@@ -355,10 +291,12 @@
 
         window.addEventListener( 'resize', onWindowResize, false );
 
-//				sphere.visible = ! true;
-
+        // 显示温层
+        showStorageArea();
     }
-
+    function onDocumentMouseCancel(e) {
+        console.log('asdf', e)
+    }
     //
 
     function onWindowResize() {
@@ -375,42 +313,58 @@
     function animate() {
 
         requestAnimationFrame( animate );
-
-//				var time = Date.now();
-//
-//				var windStrength = Math.cos( time / 7000 ) * 20 + 40;
-//
-//				windForce.set( Math.sin( time / 2000 ), Math.cos( time / 3000 ), Math.sin( time / 1000 ) )
-//				windForce.normalize()
-//				windForce.multiplyScalar( windStrength );
-//
-//				simulate( time );
         render();
         stats.update();
 
     }
 
     function render() {
-
-//				var p = cloth.particles;
-//
-//				for ( var i = 0, il = p.length; i < il; i ++ ) {
-//
-//					clothGeometry.vertices[ i ].copy( p[ i ].position );
-//
-//				}
-//
-//				clothGeometry.verticesNeedUpdate = true;
-//
-//				clothGeometry.computeFaceNormals();
-//				clothGeometry.computeVertexNormals();
-//
-//				sphere.position.copy( ballPosition );
-
         renderer.render( scene, camera );
+    }
+    function showStorageArea() {
+        var shader = THREE.ParallaxShader;
+        var uniforms = THREE.UniformsUtils.clone( shader.uniforms );
+        var parameters = {
+            fragmentShader: shader.fragmentShader,
+            vertexShader: shader.vertexShader,
+            uniforms: uniforms
+        };
+
+//        var textureLoader = new THREE.TextureLoader();
+//        THREE.ImageUtils.crossOrigin = '';
+        var loader = new THREE.TextureLoader();
+//        loader.setCrossOrigin('*');
+        // http://ebiz-images.oss-cn-shanghai.aliyuncs.com/default/images/1096863.png
+        material = new THREE.ShaderMaterial( parameters );
+        material.map = loader.load( 'http://i.imgur.com/3tU4Vig.jpg' );
+        material.bumpMap = loader.load( 'http://i.imgur.com/3tU4Vig.jpg' );
+        material.map.anisotropy = 4;
+        material.bumpMap.anisotropy = 4;
+        uniforms[ 'map' ].value = material.map;
+        uniforms[ 'bumpMap' ].value = material.bumpMap;
+        var geometryArea = new THREE.CubeGeometry( 300, 10, 300 );
+        var cubeArea = new THREE.Mesh( geometryArea, material );
+        cubeArea.scale.y = Math.floor(1);
+        cubeArea.position.x = -1150 + 25;
+        cubeArea.position.y = 5;
+        cubeArea.position.z = 350;
+        scene.add( cubeArea );
+    }
+    function onDocumentMouseDown( event ) {
+
+        event.preventDefault();
+
+        mouse.x = ( event.clientX / renderer.domElement.clientWidth ) * 2 - 1;
+        mouse.y = -( event.clientY / renderer.domElement.clientHeight ) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+
+        var intersects = raycaster.intersectObjects(scene.children);
+        if ( intersects.length > 0 ) {
+            console.log(intersects)
+        }
 
     }
-
 </script>
 </body>
 </html>
