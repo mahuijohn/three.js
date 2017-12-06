@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>three.js webgl - cloth simulation</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <style>
+        body {
+            font-family: Monospace;
+            background-color: #000;
+            color: #000;
+            margin: 0px;
+            overflow: hidden;
+        }
+
+        #info {
+            position: absolute;
+            padding: 10px;
+            width: 100%;
+            text-align: center;
+        }
+
+        a {
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
+    </style>
+</head>
+
+<body>
+<script src="../build/three.js"></script>
+
+<script src="js/Detector.js"></script>
+<script src="js/controls/OrbitControls.js"></script>
+<script src="js/libs/stats.min.js"></script>
+<script src="js/shaders/ParallaxShader.js"></script>
+<script src="js/Cloth.js"></script>
+
+<script>
+
+    /* testing cloth simulation */
+    //    if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
+
+    var container, stats, raycaster, mouse;
+    var camera, scene, renderer;
+
+    init();
+    animate();
+
+    function init() {
+        raycaster = new THREE.Raycaster();
+        mouse = new THREE.Vector2();
+
+        container = document.createElement( 'div' );
+        document.body.appendChild( container );
+
+        // scene
+
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color( 0xcce0ff );
+        scene.fog = new THREE.Fog( 0xcce0ff, 500, 10000 );
+
+        // camera
+
+        camera = new THREE.PerspectiveCamera( 30, window.innerWidth / window.innerHeight, 1, 10000 );
+        camera.position.set( 2000, 2000, 2000 );
+
+        // lights
+
+        var light, materials;
+
+        scene.add( new THREE.AmbientLight( 0x666666 ) );
+
+        light = new THREE.DirectionalLight( 0xdfebff, 1 );
+        light.position.set( 50, 200, 100 );
+        light.position.multiplyScalar( 1.3 );
+
+        light.castShadow = true;
+
+        light.shadow.mapSize.width = 1024;
+        light.shadow.mapSize.height = 1024;
+
+        var d = 300;
+
+        light.shadow.camera.left = - d;
+        light.shadow.camera.right = d;
+        light.shadow.camera.top = d;
+        light.shadow.camera.bottom = - d;
+
+        light.shadow.camera.far = 1000;
+
+        scene.add( light );
+
+        //
+        var wareArr = [];
+
+        // 框架
+        var material = new THREE.LineBasicMaterial({ color: 0x0000ff });
+        var height = 500;
+
+
+        // 仓库地形
+        var geometryArea = new THREE.CubeGeometry( 300, 10, 300 );
+        var materialArea = new THREE.MeshNormalMaterial( {  overdraw: 0.5 } );
+        var cubeArea = new THREE.Mesh( geometryArea, materialArea );
+        cubeArea.scale.y = Math.floor(1);
+        cubeArea.position.x = -800 + 25;
+        cubeArea.position.y = 5;
+        cubeArea.position.z = 300;
+        scene.add( cubeArea );
+
+        // -----------------------------------START------------------------------------
+
+        THREE.ImageUtils.crossOrigin = '';
+        var loader = new THREE.TextureLoader();
+//        var texture = loader.load('http://wow.techbrood.com/uploads/1702/crate.jpg');
+        var shader = THREE.ParallaxShader;
+        var uniforms = THREE.UniformsUtils.clone( shader.uniforms );
+        var parameters = {
+            fragmentShader: shader.fragmentShader,
+            vertexShader: shader.vertexShader,
+            uniforms: uniforms
+        };
+//        material = new THREE.ShaderMaterial( parameters );
+//        material.map = texture;
+//        material.bumpMap = texture;
+//        material.map.anisotropy = 4;
+//        material.bumpMap.anisotropy = 4;
+//        uniforms[ 'map' ].value = material.map;
+//        uniforms[ 'bumpMap' ].value = material.bumpMap;
+
+        var cube = new THREE.CubeGeometry( 500, 500, 500 );
+        console.log('material', material)
+        var mesh  = new THREE.Mesh(cube, new THREE.MeshPhongMaterial( { map: THREE.ImageUtils.loadTexture('http://wow.techbrood.com/uploads/1702/crate.jpg') } ));
+        mesh.scale.y = Math.floor(1);
+        mesh.position.x = 25;
+        mesh.position.y = 500;
+        mesh.position.z = 100;
+        scene.add(mesh);
+
+
+//        scene.add(new THREE.Mesh(new THREE.Plane(new THREE.Vector3(1, 0, 0), 100), new THREE.MeshNormalMaterial( {  overdraw: 0.5, side: THREE.DoubleSide } )));
+        scene.add(new THREE.Mesh( new THREE.PlaneGeometry( 480, 204, 4, 1000 ), new THREE.MeshNormalMaterial( {  overdraw: 0.5, side: THREE.DoubleSide } ) ));
+//        new THREE.TextGeometry();
+//        new THREE.ArrowHelper();
+
+        var v1 = new THREE.Vector3(100, 600, 200);
+        var v2 = new THREE.Vector3(400, 600, 300);
+        var v3 = new THREE.Vector3(500, 600, 100);
+        v1.add(new THREE.Vector3(0, 0, 0));
+        v2.add(new THREE.Vector3(0, 0, 0));
+        v3.add(new THREE.Vector3(0, 0, 0));
+        var geometry = new THREE.Geometry();
+        var material = new THREE.MeshBasicMaterial( { vertexColors: THREE.FaceColors, side: THREE.DoubleSide } );
+        var face = new THREE.Face3(
+            geometry.vertices.push( v1 ) - 1,
+            geometry.vertices.push( v2 ) - 1,
+            geometry.vertices.push( v3 ) - 1,
+            null,
+            new THREE.Color( Math.random() * 0xffffff )
+        );
+        geometry.faces.push(face);
+        geometry.computeBoundingSphere();
+        var group = new THREE.Mesh(geometry, material);
+        group.scale.set(2, 2 ,2);
+        scene.add(group)
+
+
+        // sprite
+        var sprite = new THREE.Sprite( new THREE.SpriteMaterial( { color: 0xff0040, side: THREE.BackSide } ) );
+        sprite.scale.set( 100, 100, 1 );
+        sprite.position.set( -100, 600, 0 );
+        scene.add( sprite );
+        console.log('sprite', sprite);
+
+        // -----------------------------------END---------------------------------------
+
+        var geometry = new THREE.Geometry();
+        for (var i = 0; i < 40; i ++) {
+            var pos = 50 * i - 1000;
+
+            // 过道地板
+            if (i % 4 == 0 || (i + 1) % 4 == 0) {
+                if ((i + 1) % 4 == 0) {
+                    var geometryArea = new THREE.CubeGeometry( 100, 10, 1000 );
+                    var materialArea = new THREE.MeshNormalMaterial( {  overdraw: 0.5 } );
+                    var cubeArea = new THREE.Mesh( geometryArea, materialArea );
+                    cubeArea.scale.y = Math.floor(1);
+                    cubeArea.position.x = pos + 25;
+                    cubeArea.position.y = 5;
+                    cubeArea.position.z = 0;
+                    scene.add( cubeArea );
+                }
+                continue
+            }
+
+            // 货架框架
+            geometry.vertices.push(new THREE.Vector3(pos, 0, -500));
+            geometry.vertices.push(new THREE.Vector3(pos, height, -500));
+            geometry.vertices.push(new THREE.Vector3(pos, height, 500));
+            geometry.vertices.push(new THREE.Vector3(pos, 0, 500));
+            geometry.vertices.push(new THREE.Vector3(pos, 0, -500));
+            var line = new THREE.Line(geometry, material);
+            scene.add(line);
+
+            for (var j = 0; j <= 10; j ++) {
+                var wid = 100 * j - 500;
+                // 货架分栏
+                var geometryJ = new THREE.Geometry();
+                geometryJ.vertices.push(new THREE.Vector3(pos, 0, wid));
+                geometryJ.vertices.push(new THREE.Vector3(pos, 500, wid));
+                var line = new THREE.Line(geometryJ, material);
+                scene.add(line);
+            }
+
+            for (var j = 0; j <= 5; j ++) {
+                var hei = 100 * j;
+                // 货架分层
+                var geometryJ = new THREE.Geometry();
+                geometryJ.vertices.push(new THREE.Vector3(pos, hei, 500));
+                geometryJ.vertices.push(new THREE.Vector3(pos, hei, -500));
+                var line = new THREE.Line(geometryJ, material);
+                scene.add(line);
+                // 货架分栏
+
+
+                if ((i - 1) % 4 == 0) {
+                    for (var k = 0; k <= 10; k ++) {
+                        var wid = 100 * k - 500;
+                        // 完整货架框
+                        var geometryK = new THREE.Geometry();
+                        geometryK.vertices.push(new THREE.Vector3(pos, hei, wid));
+                        geometryK.vertices.push(new THREE.Vector3(pos +  50, hei, wid));
+                        var line = new THREE.Line(geometryK, material);
+                        scene.add(line);
+                        if (j != 5 && k != 10) {
+                            wareArr.push({len: pos, hei: hei, wid: wid});
+                        }
+                    }
+                }
+            }
+
+            document.addEventListener( 'mousedown', onDocumentMouseDown, false );
+        }
+
+        // 填充物
+//        var geometry = new THREE.CubeGeometry( 40, 80, 80 );
+//        var material = new THREE.MeshNormalMaterial( { overdraw: 0.5 } );
+//        for (var i = 0; i < wareArr.length; i ++) {
+//            if (Math.random() > 0.5) {
+//                continue
+//            }
+//            var cube = new THREE.Mesh( geometry, material );
+//            cube.scale.y = Math.floor(1);
+//            cube.position.x = wareArr[i].len + 25;
+//            cube.position.y = wareArr[i].hei + 50;
+//            cube.position.z = wareArr[i].wid + 50;
+//            cube.addEventListener( 'mouseup', onDocumentMouseCancel, false );
+//            scene.add( cube );
+//        }
+
+        //
+        renderer = new THREE.WebGLRenderer( { antialias: true } );
+        renderer.setPixelRatio( window.devicePixelRatio );
+        renderer.setSize( window.innerWidth, window.innerHeight );
+        renderer.shadowMap.renderSingleSided = false;
+
+        container.appendChild( renderer.domElement );
+
+        renderer.gammaInput = true;
+        renderer.gammaOutput = true;
+
+        renderer.shadowMap.enabled = true;
+
+        // controls
+        var controls = new THREE.OrbitControls( camera, renderer.domElement );
+//        controls.maxPolarAngle = Math.PI * 1;
+        controls.minDistance = 1000;
+        controls.maxDistance = 5000;
+        controls.enablePan = false;
+        controls.maxPolarAngle = 0.5 * Math.PI;
+        controls.minPolarAngle = 0 * Math.PI;
+
+        // performance monitor
+
+        stats = new Stats();
+        container.appendChild( stats.dom );
+
+        //
+
+        window.addEventListener( 'resize', onWindowResize, false );
+
+        // 显示温层
+        showStorageArea();
+    }
+    function onDocumentMouseCancel(e) {
+        console.log('asdf', e)
+    }
+    //
+
+    function onWindowResize() {
+
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+
+        renderer.setSize( window.innerWidth, window.innerHeight );
+
+    }
+
+    //
+
+    function animate() {
+
+        requestAnimationFrame( animate );
+        render();
+        stats.update();
+
+    }
+
+    function render() {
+        renderer.render( scene, camera );
+    }
+    function showStorageArea() {
+        var shader = THREE.ParallaxShader;
+        var uniforms = THREE.UniformsUtils.clone( shader.uniforms );
+        var parameters = {
+            fragmentShader: shader.fragmentShader,
+            vertexShader: shader.vertexShader,
+            uniforms: uniforms
+        };
+
+//        var textureLoader = new THREE.TextureLoader();
+//        THREE.ImageUtils.crossOrigin = '';
+        var loader = new THREE.TextureLoader();
+//        loader.setCrossOrigin('*');
+        // http://ebiz-images.oss-cn-shanghai.aliyuncs.com/default/images/1096863.png
+        material = new THREE.ShaderMaterial( parameters );
+        material.map = loader.load( 'http://i.imgur.com/3tU4Vig.jpg' );
+        material.bumpMap = loader.load( 'http://i.imgur.com/3tU4Vig.jpg' );
+        material.map.anisotropy = 4;
+        material.bumpMap.anisotropy = 4;
+        uniforms[ 'map' ].value = material.map;
+        uniforms[ 'bumpMap' ].value = material.bumpMap;
+        var geometryArea = new THREE.CubeGeometry( 300, 10, 300 );
+        var cubeArea = new THREE.Mesh( geometryArea, material );
+        cubeArea.scale.y = Math.floor(1);
+        cubeArea.position.x = -1150 + 25;
+        cubeArea.position.y = 5;
+        cubeArea.position.z = 350;
+        scene.add( cubeArea );
+    }
+    function onDocumentMouseDown( event ) {
+
+        event.preventDefault();
+
+        mouse.x = ( event.clientX / renderer.domElement.clientWidth ) * 2 - 1;
+        mouse.y = -( event.clientY / renderer.domElement.clientHeight ) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+
+        var intersects = raycaster.intersectObjects(scene.children);
+        if ( intersects.length > 0 ) {
+            console.log(intersects)
+        }
+
+    }
+</script>
+</body>
+</html>
