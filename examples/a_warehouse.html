@@ -49,6 +49,7 @@
     animate();
 
     function init() {
+
         raycaster = new THREE.Raycaster();
         mouse = new THREE.Vector2();
 
@@ -101,12 +102,12 @@
 
 
         // 仓库地形
-        var geometryArea = new THREE.CubeGeometry( 300, 10, 300 );
-        var materialArea = new THREE.MeshNormalMaterial( {  overdraw: 0.5 } );
+        var geometryArea = new THREE.CubeGeometry( 300, 100, 300 );
+        var materialArea = new THREE.MeshNormalMaterial( {  overdraw: 0.5, wireframe: true, wireframeLinewidth: 0, wireframeLinecap: 'square', morphTargets: true } );
         var cubeArea = new THREE.Mesh( geometryArea, materialArea );
         cubeArea.scale.y = Math.floor(1);
-        cubeArea.position.x = -800 + 25;
-        cubeArea.position.y = 5;
+        cubeArea.position.x = 800 + 25;
+        cubeArea.position.y = 100;
         cubeArea.position.z = 300;
         scene.add( cubeArea );
 
@@ -132,11 +133,12 @@
 
         var cube = new THREE.CubeGeometry( 500, 500, 500 );
         console.log('material', material)
-        var mesh  = new THREE.Mesh(cube, new THREE.MeshPhongMaterial( { map: THREE.ImageUtils.loadTexture('http://wow.techbrood.com/uploads/1702/crate.jpg') } ));
+        var mesh  = new THREE.Mesh(cube, new THREE.MeshPhongMaterial( { map: THREE.ImageUtils.loadTexture('http://i.imgur.com/3tU4Vig.jpg') } ));
         mesh.scale.y = Math.floor(1);
         mesh.position.x = 25;
         mesh.position.y = 500;
         mesh.position.z = 100;
+        cube.addEventLi
         scene.add(mesh);
 
 
@@ -241,7 +243,7 @@
                 }
             }
 
-            document.addEventListener( 'mousedown', onDocumentMouseDown, false );
+//            document.addEventListener( 'mousedown', onDocumentMouseDown, false );
         }
 
         // 填充物
